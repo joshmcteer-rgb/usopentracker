@@ -1,0 +1,994 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>US Open Buddy Pool</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Google Fonts for premium typography -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=Cinzel:wght@700&display=swap" rel="stylesheet">
+    <!-- FontAwesome Icons for visual flair -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <script>
+        // Tailwind Custom Configuration
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif'],
+                        serif: ['Cinzel', 'serif'],
+                    },
+                    colors: {
+                        zinc: {
+                            850: '#202024',
+                            950: '#0c0c0e',
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        .custom-glow {
+            box-shadow: 0 0 15px rgba(16, 185, 129, 0.15);
+        }
+        .bet-gradient-geoff {
+            background: linear-gradient(135deg, rgba(20, 184, 166, 0.15) 0%, rgba(20, 184, 166, 0.02) 100%);
+        }
+        .bet-gradient-josh {
+            background: linear-gradient(135deg, rgba(99, 102, 241, 0.15) 0%, rgba(99, 102, 241, 0.02) 100%);
+        }
+    </style>
+</head>
+<body class="bg-zinc-950 text-slate-100 font-sans min-h-screen selection:bg-emerald-500 selection:text-white">
+
+    <!-- Top Decorative Line -->
+    <div class="h-1.5 bg-gradient-to-r from-teal-500 via-emerald-500 to-indigo-500 w-full"></div>
+
+    <div class="max-w-7xl mx-auto px-4 py-6 sm:px-6 lg:px-8">
+        <!-- Main Top Bar -->
+        <header class="flex flex-col md:flex-row md:items-center md:justify-between border-b border-zinc-800/80 pb-6 mb-8 gap-4">
+            <div>
+                <div class="flex items-center gap-2 text-xs font-bold uppercase tracking-widest text-emerald-500 mb-1">
+                    <i class="fa-solid fa-flag"></i> Shinnecock Hills G.C. • US Open Tracker
+                </div>
+                <h1 class="text-3xl font-black text-white tracking-tight flex items-center gap-2.5">
+                    Buddy Pool <span class="text-transparent bg-clip-text bg-gradient-to-r from-emerald-400 to-teal-400">Leaderboard</span>
+                </h1>
+                <p class="text-sm text-slate-400 mt-1">Live tracking for the low-net combined and single-golfer friend matches.</p>
+            </div>
+
+            <!-- Global Action Controls -->
+            <div class="flex flex-wrap items-center gap-2.5">
+                <button onclick="fetchLiveTournamentScores()" 
+                    class="bg-emerald-600 hover:bg-emerald-500 text-white px-4 py-2.5 rounded-xl font-bold text-xs flex items-center gap-2 tracking-wide transition shadow-lg shadow-emerald-950/40 border border-emerald-500/20">
+                    <i id="syncIcon" class="fa-solid fa-arrows-rotate"></i> Sync Live Scores
+                </button>
+                <button onclick="clearStateAndReload()" 
+                    class="bg-zinc-900 hover:bg-zinc-800 text-slate-400 hover:text-white px-3 py-2.5 rounded-xl font-semibold text-xs border border-zinc-800 transition">
+                    Reset Baseline
+                </button>
+            </div>
+        </header>
+
+        <!-- The $20 Bets Cardboard -->
+        <section class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
+            <!-- Bet 1: Low Combined Net ($10) -->
+            <div class="bg-zinc-900/90 border border-zinc-800/80 rounded-2xl p-5 shadow-xl relative overflow-hidden custom-glow">
+                <div class="absolute top-0 right-0 p-3 text-xs font-bold text-emerald-400 bg-emerald-500/10 rounded-bl-xl border-l border-b border-emerald-500/20">
+                    $10.00 BET
+                </div>
+                <div class="flex items-center gap-2 mb-3">
+                    <div class="w-8 h-8 rounded-lg bg-teal-500/10 flex items-center justify-center text-teal-400 border border-teal-500/20">
+                        <i class="fa-solid fa-users"></i>
+                    </div>
+                    <div>
+                        <h2 class="text-sm font-black text-slate-300 uppercase tracking-wider">Low Combined Net Score</h2>
+                        <p class="text-xs text-slate-500">Sum of all 5 golfers' total scores vs. par</p>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-2 gap-4 my-4">
+                    <!-- Geoff's Roster Combined -->
+                    <div class="p-3 rounded-xl bet-gradient-geoff border border-teal-500/20 text-center">
+                        <span class="text-[10px] font-bold text-teal-400 uppercase tracking-wider">Geoff's Team Total</span>
+                        <div id="geoffCombinedScore" class="text-3xl font-black mt-1 text-white">E</div>
+                        <span class="text-[10px] text-slate-400 font-semibold" id="geoffCombinedStrokes">--</span>
+                    </div>
+                    <!-- Josh's Roster Combined -->
+                    <div class="p-3 rounded-xl bet-gradient-josh border border-indigo-500/20 text-center">
+                        <span class="text-[10px] font-bold text-indigo-400 uppercase tracking-wider">Josh's Team Total</span>
+                        <div id="joshCombinedScore" class="text-3xl font-black mt-1 text-white">E</div>
+                        <span class="text-[10px] text-slate-400 font-semibold" id="joshCombinedStrokes">--</span>
+                    </div>
+                </div>
+
+                <!-- Combined Bet Live Status Banner -->
+                <div id="combinedBetWinnerBar" class="mt-3 p-3 rounded-xl bg-zinc-950/80 border border-zinc-800/80 text-xs font-bold flex items-center justify-between text-slate-300">
+                    <span>Loading...</span>
+                </div>
+            </div>
+
+            <!-- Bet 2: Lowest Overall Single Player ($10) -->
+            <div class="bg-zinc-900/90 border border-zinc-800/80 rounded-2xl p-5 shadow-xl relative overflow-hidden custom-glow">
+                <div class="absolute top-0 right-0 p-3 text-xs font-bold text-indigo-400 bg-indigo-500/10 rounded-bl-xl border-l border-b border-indigo-500/20">
+                    $10.00 BET
+                </div>
+                <div class="flex items-center gap-2 mb-3">
+                    <div class="w-8 h-8 rounded-lg bg-indigo-500/10 flex items-center justify-center text-indigo-400 border border-indigo-500/20">
+                        <i class="fa-solid fa-trophy"></i>
+                    </div>
+                    <div>
+                        <h2 class="text-sm font-black text-slate-300 uppercase tracking-wider">Lowest Single Player</h2>
+                        <p class="text-xs text-slate-500">Absolute lowest scorer among all 10 golfers</p>
+                    </div>
+                </div>
+
+                <!-- Leader Player Display -->
+                <div class="flex items-center gap-4 py-4 px-3 bg-zinc-950/50 border border-zinc-850 rounded-xl my-4">
+                    <div class="w-12 h-12 bg-amber-500/10 border border-amber-500/20 text-amber-400 rounded-xl flex items-center justify-center text-xl font-black">
+                        <i class="fa-solid fa-crown"></i>
+                    </div>
+                    <div>
+                        <span id="lowPlayerBadge" class="text-[9px] font-bold px-2 py-0.5 rounded uppercase border"></span>
+                        <div id="lowPlayerName" class="text-lg font-black text-white mt-0.5">...</div>
+                        <p class="text-xs text-slate-400" id="lowPlayerScoreDesc">Loading...</p>
+                    </div>
+                </div>
+
+                <!-- Combined Single Winner Banner -->
+                <div id="singleBetWinnerBar" class="p-3 rounded-xl bg-zinc-950/80 border border-zinc-800/80 text-xs font-bold flex items-center justify-between text-slate-300">
+                    <span>Loading...</span>
+                </div>
+            </div>
+        </section>
+
+        <!-- Main Content Area: Left Leaderboard, Right Custom Inputs -->
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+            
+            <!-- Left Side: Roster Standings (Takes 2 Columns) -->
+            <div class="lg:col-span-2 space-y-6">
+                <!-- Sync Time Panel -->
+                <div class="flex items-center justify-between px-4 py-3 bg-zinc-900/60 border border-zinc-850 rounded-xl text-xs text-slate-400">
+                    <span class="flex items-center gap-1.5 font-medium">
+                        <span id="syncIndicatorDot" class="w-2.5 h-2.5 rounded-full bg-slate-500 animate-pulse"></span>
+                        Status: <span id="syncText" class="font-bold text-slate-300">Unsynced</span>
+                    </span>
+                    <span id="syncTimeText" class="font-medium text-slate-400">Not synced yet</span>
+                </div>
+
+                <!-- Main Leaderboard Table Wrapper -->
+                <div class="bg-zinc-900 border border-zinc-800/80 rounded-2xl overflow-hidden shadow-xl">
+                    <div class="p-5 border-b border-zinc-850 flex items-center justify-between flex-wrap gap-3 bg-zinc-900">
+                        <h3 class="text-base font-extrabold text-white tracking-wide">Tournament Standings (Drafted Players)</h3>
+                        <div class="flex items-center gap-1.5 bg-zinc-950/80 p-1 rounded-lg border border-zinc-800/80">
+                            <button onclick="changeSort('score')" id="sortScoreBtn" class="px-3 py-1.5 rounded-md text-[10px] font-extrabold uppercase tracking-wider transition bg-emerald-600 text-white">Score</button>
+                            <button onclick="changeSort('owner')" id="sortOwnerBtn" class="px-3 py-1.5 rounded-md text-[10px] font-extrabold uppercase tracking-wider transition text-slate-400 hover:text-white">Owner</button>
+                        </div>
+                    </div>
+
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-left border-collapse">
+                            <thead>
+                                <tr class="bg-zinc-950/40 text-[10px] uppercase font-bold tracking-wider text-slate-400 border-b border-zinc-850">
+                                    <th class="py-3 px-4 text-center w-12">#</th>
+                                    <th class="py-3 px-4">Player</th>
+                                    <th class="py-3 px-4">Team</th>
+                                    <th class="py-3 px-4 text-center w-20">To Par</th>
+                                    <th class="py-3 px-4 text-center w-32">Thru / Tee</th>
+                                    <th class="py-3 px-4 text-center w-12">R1</th>
+                                    <th class="py-3 px-4 text-center w-12">R2</th>
+                                    <th class="py-3 px-4 text-center w-12">R3</th>
+                                    <th class="py-3 px-4 text-center w-12">R4</th>
+                                </tr>
+                            </thead>
+                            <tbody id="leaderboardBody" class="divide-y divide-zinc-850/50">
+                                <!-- Generated Dynamically -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <div class="text-center">
+                    <p class="text-xs text-slate-500 font-medium">💡 Click on any player row to view their interactive course scorecard.</p>
+                </div>
+            </div>
+
+            <!-- Right Side: Live/Manual Override Dashboard -->
+            <div class="bg-zinc-900 border border-zinc-800/80 rounded-2xl p-5 shadow-xl h-fit">
+                <div class="border-b border-zinc-850 pb-4 mb-4">
+                    <h3 class="text-base font-extrabold text-white tracking-wide flex items-center gap-2">
+                        <i class="fa-solid fa-sliders text-emerald-500"></i> Local Score Controller
+                    </h3>
+                    <p class="text-xs text-slate-400 mt-1">Directly key in tournament updates during live television broadcasts.</p>
+                </div>
+
+                <!-- Geoff's Roster Controllers -->
+                <div class="space-y-4">
+                    <h4 class="text-xs font-black uppercase text-teal-400 tracking-wider flex items-center gap-1.5">
+                        <span class="w-2 h-2 rounded-full bg-teal-500"></span> Geoff's Team Inputs
+                    </h4>
+                    <div class="space-y-3" id="geoffManualInputs">
+                        <!-- Filled dynamically -->
+                    </div>
+
+                    <!-- Josh's Roster Controllers -->
+                    <h4 class="text-xs font-black uppercase text-indigo-400 tracking-wider flex items-center gap-1.5 pt-4">
+                        <span class="w-2 h-2 rounded-full bg-indigo-500"></span> Josh's Team Inputs
+                    </h4>
+                    <div class="space-y-3" id="joshManualInputs">
+                        <!-- Filled dynamically -->
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Interactive Detailed Scorecard Modal -->
+    <div id="scorecardModal" class="fixed inset-0 bg-black/85 backdrop-blur-sm z-50 hidden items-center justify-center p-4">
+        <div class="bg-zinc-900 border border-zinc-800 rounded-2xl w-full max-w-4xl overflow-hidden shadow-2xl relative">
+            <button onclick="closeScorecard()" class="absolute top-4 right-4 text-slate-400 hover:text-white transition w-8 h-8 rounded-lg bg-zinc-800/80 flex items-center justify-center">
+                <i class="fa-solid fa-xmark text-lg"></i>
+            </button>
+            
+            <div class="p-6">
+                <!-- Modal Player Header Info -->
+                <div class="flex flex-col md:flex-row md:items-center md:justify-between border-b border-zinc-800 pb-5 mb-5 gap-3">
+                    <div>
+                        <span id="modalPlayerOwner" class="text-[10px] font-black uppercase tracking-widest border px-2 py-0.5 rounded">Owner: Geoff</span>
+                        <h2 id="modalPlayerName" class="text-2xl font-black text-white mt-1">Scottie Scheffler</h2>
+                    </div>
+                    <div class="flex items-center gap-4">
+                        <div class="text-center bg-zinc-950/60 px-4 py-2 rounded-xl border border-zinc-850">
+                            <span class="text-[9px] uppercase font-extrabold text-slate-500 block">Relative score</span>
+                            <span id="modalTotalScore" class="text-xl font-black text-emerald-400">E</span>
+                        </div>
+                        <div class="text-center bg-zinc-950/60 px-4 py-2 rounded-xl border border-zinc-850">
+                            <span class="text-[9px] uppercase font-extrabold text-slate-500 block">Strokes Total</span>
+                            <span id="modalTotalStrokes" class="text-xl font-black text-white">70</span>
+                        </div>
+                        <div class="text-center bg-zinc-950/60 px-4 py-2 rounded-xl border border-zinc-850">
+                            <span class="text-[9px] uppercase font-extrabold text-slate-500 block">Round Progress</span>
+                            <span id="modalProgressThru" class="text-xl font-black text-amber-400">Thru 14</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Detailed 18 Hole Scorecard Table -->
+                <div class="overflow-x-auto mb-4 border border-zinc-800 rounded-xl bg-zinc-950/50">
+                    <table class="w-full text-center text-xs min-w-[700px]">
+                        <thead>
+                            <tr class="bg-zinc-900 text-[10px] uppercase font-bold text-slate-400 border-b border-zinc-800">
+                                <th class="py-2.5 px-2 border-r border-zinc-850 text-slate-300">Hole</th>
+                                <th class="py-2.5 px-1.5">1</th><th class="py-2.5 px-1.5">2</th><th class="py-2.5 px-1.5">3</th>
+                                <th class="py-2.5 px-1.5">4</th><th class="py-2.5 px-1.5">5</th><th class="py-2.5 px-1.5">6</th>
+                                <th class="py-2.5 px-1.5">7</th><th class="py-2.5 px-1.5">8</th><th class="py-2.5 px-1.5">9</th>
+                                <th class="py-2.5 px-2 bg-zinc-900 border-x border-zinc-850 text-slate-300">OUT</th>
+                                <th class="py-2.5 px-1.5">10</th><th class="py-2.5 px-1.5">11</th><th class="py-2.5 px-1.5">12</th>
+                                <th class="py-2.5 px-1.5">13</th><th class="py-2.5 px-1.5">14</th><th class="py-2.5 px-1.5">15</th>
+                                <th class="py-2.5 px-1.5">16</th><th class="py-2.5 px-1.5">17</th><th class="py-2.5 px-1.5">18</th>
+                                <th class="py-2.5 px-2 border-l border-zinc-850 text-slate-300">IN</th>
+                                <th class="py-2.5 px-3 font-bold text-white">TOT</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-zinc-850">
+                            <!-- Par Line -->
+                            <tr class="bg-zinc-900/30 text-slate-400">
+                                <td class="py-2.5 px-2 font-bold border-r border-zinc-850 text-left">Par</td>
+                                <td class="py-2.5 font-semibold">4</td><td class="py-2.5 font-semibold">4</td><td class="py-2.5 font-semibold">4</td>
+                                <td class="py-2.5 font-semibold">4</td><td class="py-2.5 font-semibold">4</td><td class="py-2.5 font-semibold">3</td>
+                                <td class="py-2.5 font-semibold">4</td><td class="py-2.5 font-semibold">4</td><td class="py-2.5 font-semibold">4</td>
+                                <td id="modalParOut" class="py-2.5 font-bold bg-zinc-900 border-x border-zinc-850">35</td>
+                                <td class="py-2.5 font-semibold">4</td><td class="py-2.5 font-semibold">4</td><td class="py-2.5 font-semibold">4</td>
+                                <td class="py-2.5 font-semibold">3</td><td class="py-2.5 font-semibold">4</td><td class="py-2.5 font-semibold">4</td>
+                                <td class="py-2.5 font-semibold">4</td><td class="py-2.5 font-semibold">3</td><td class="py-2.5 font-semibold">4</td>
+                                <td id="modalParIn" class="py-2.5 font-bold border-l border-zinc-850">35</td>
+                                <td class="py-2.5 font-extrabold text-slate-300">70</td>
+                            </tr>
+                            <!-- Strokes Line -->
+                            <tr class="font-bold text-white">
+                                <td class="py-3 px-2 border-r border-zinc-850 text-left text-slate-300">Score</td>
+                                <td id="hole_1" class="py-3">--</td><td id="hole_2" class="py-3">--</td><td id="hole_3" class="py-3">--</td>
+                                <td id="hole_4" class="py-3">--</td><td id="hole_5" class="py-3">--</td><td id="hole_6" class="py-3">--</td>
+                                <td id="hole_7" class="py-3">--</td><td id="hole_8" class="py-3">--</td><td id="hole_9" class="py-3">--</td>
+                                <td id="modalScoreOut" class="py-3 bg-zinc-900 border-x border-zinc-850 text-slate-300">--</td>
+                                <td id="hole_10" class="py-3">--</td><td id="hole_11" class="py-3">--</td><td id="hole_12" class="py-3">--</td>
+                                <td id="hole_13" class="py-3">--</td><td id="hole_14" class="py-3">--</td><td id="hole_15" class="py-3">--</td>
+                                <td id="hole_16" class="py-3">--</td><td id="hole_17" class="py-3">--</td><td id="hole_18" class="py-3">--</td>
+                                <td id="modalScoreIn" class="py-3 border-l border-zinc-850 text-slate-300">--</td>
+                                <td id="modalScoreTotal" class="py-3 text-emerald-400 font-black">--</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <!-- Custom Scorecard Key Legend -->
+                <div class="flex items-center justify-start gap-4 flex-wrap text-slate-400 text-[10px] font-bold uppercase tracking-wider px-1 pt-2">
+                    <span class="flex items-center gap-1.5"><span class="w-3 h-3 rounded-md bg-emerald-500/10 border border-emerald-500 text-emerald-400 flex items-center justify-center font-bold text-[8px]">⭐</span> Birdie or Better</span>
+                    <span class="flex items-center gap-1.5"><span class="w-3 h-3 rounded-md bg-zinc-800 text-slate-300 flex items-center justify-center font-bold text-[8px] border border-zinc-750">Par</span> Par</span>
+                    <span class="flex items-center gap-1.5"><span class="w-3 h-3 rounded-md bg-rose-500/10 border border-rose-500 text-rose-400 flex items-center justify-center font-bold text-[8px]">▲</span> Bogey or Worse</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // --- Static Setup Variables ---
+        const GEOFF_TEAM = "Geoff";
+        const JOSH_TEAM = "Josh";
+        const TOTAL_PAR = 70; // Shinnecock Hills / Pinehurst 18-hole default Setup
+        const HOLE_PARS = [4, 4, 4, 4, 4, 3, 4, 4, 4, 4, 4, 4, 3, 4, 4, 4, 3, 4]; // 18 Holes individual par structure
+        
+        // Player starting list - hand drafted exactly as requested
+        const INITIAL_PLAYERS = [
+            // Geoff's Team
+            { id: "scheffler", name: "Scottie Scheffler", owner: GEOFF_TEAM, skill: 9.8, currentScore: 0, thru: 0, rounds: [0, 0, 0, 0], scorecard: [], teeTime: "8:24 AM" },
+            { id: "rahm", name: "Jon Rahm", owner: GEOFF_TEAM, skill: 9.1, currentScore: 0, thru: 0, rounds: [0, 0, 0, 0], scorecard: [], teeTime: "8:35 AM" },
+            { id: "young", name: "Cameron Young", owner: GEOFF_TEAM, skill: 8.5, currentScore: 0, thru: 0, rounds: [0, 0, 0, 0], scorecard: [], teeTime: "12:45 PM" },
+            { id: "hatton", name: "Tyrrell Hatton", owner: GEOFF_TEAM, skill: 8.4, currentScore: 0, thru: 0, rounds: [0, 0, 0, 0], scorecard: [], teeTime: "12:56 PM" },
+            { id: "clark", name: "Wyndham Clark", owner: GEOFF_TEAM, skill: 8.6, currentScore: 0, thru: 0, rounds: [0, 0, 0, 0], scorecard: [], teeTime: "1:07 PM" },
+            // Josh's Team
+            { id: "mcilroy", name: "Rory McIlroy", owner: JOSH_TEAM, skill: 9.6, currentScore: 0, thru: 0, rounds: [0, 0, 0, 0], scorecard: [], teeTime: "8:13 AM" },
+            { id: "schauffele", name: "Xander Schauffele", owner: JOSH_TEAM, skill: 9.5, currentScore: 0, thru: 0, rounds: [0, 0, 0, 0], scorecard: [], teeTime: "8:46 AM" },
+            { id: "fitzpatrick", name: "Matt Fitzpatrick", owner: JOSH_TEAM, skill: 8.7, currentScore: 0, thru: 0, rounds: [0, 0, 0, 0], scorecard: [], teeTime: "1:18 PM" },
+            { id: "fleetwood", name: "Tommy Fleetwood", owner: JOSH_TEAM, skill: 8.8, currentScore: 0, thru: 0, rounds: [0, 0, 0, 0], scorecard: [], teeTime: "1:29 PM" },
+            { id: "henley", name: "Russell Henley", owner: JOSH_TEAM, skill: 8.5, currentScore: 0, thru: 0, rounds: [0, 0, 0, 0], scorecard: [], teeTime: "1:40 PM" }
+        ];
+
+        // --- Application State ---
+        let players = [];
+        let sortField = 'score'; // 'score' or 'owner'
+        let lastSyncTime = null;
+
+        // Initialize App
+        window.onload = function() {
+            loadState();
+            generateManualInputFields();
+            renderAll();
+            
+            // Auto sync on page load!
+            setTimeout(() => {
+                fetchLiveTournamentScores();
+            }, 800);
+        };
+
+        function loadState() {
+            // Attempt to load from localStorage
+            const storedPlayers = localStorage.getItem("us_open_pool_live_players_v3");
+            const storedTime = localStorage.getItem("us_open_pool_last_sync_time");
+
+            if (storedPlayers) {
+                players = JSON.parse(storedPlayers);
+                // Ensure all players have a teeTime field (for backward compatibility with existing storage)
+                players.forEach(p => {
+                    if (p.teeTime === undefined) {
+                        p.teeTime = null;
+                    }
+                });
+                if (storedTime) {
+                    lastSyncTime = new Date(storedTime);
+                }
+            } else {
+                // First run: copy initial baseline and populate scorecards
+                players = JSON.parse(JSON.stringify(INITIAL_PLAYERS));
+                players.forEach(p => {
+                    generateCalculatedScorecard(p);
+                });
+                saveState();
+            }
+        }
+
+        function saveState() {
+            localStorage.setItem("us_open_pool_live_players_v3", JSON.stringify(players));
+            if (lastSyncTime) {
+                localStorage.setItem("us_open_pool_last_sync_time", lastSyncTime.toISOString());
+            }
+        }
+
+        function clearStateAndReload() {
+            localStorage.removeItem("us_open_pool_live_players_v3");
+            localStorage.removeItem("us_open_pool_last_sync_time");
+            players = JSON.parse(JSON.stringify(INITIAL_PLAYERS));
+            players.forEach(p => {
+                generateCalculatedScorecard(p);
+            });
+            lastSyncTime = null;
+            saveState();
+            generateManualInputFields();
+            renderAll();
+            alert("Rosters reset back to tournament baseline values.");
+        }
+
+        // Utility to mock scorecard pars to fit current score
+        function generateCalculatedScorecard(player) {
+            let relativeScoreRemaining = player.currentScore;
+            const completedHolesCount = player.thru;
+            const scorecard = Array(18).fill(null);
+
+            // Populate all completed holes with likely realistic pars/birdies/bogies based on skill
+            for (let i = 0; i < completedHolesCount; i++) {
+                const par = HOLE_PARS[i];
+                if (i === completedHolesCount - 1) {
+                    // Force final remaining gap of math onto this hole so total scores match perfectly
+                    scorecard[i] = par + relativeScoreRemaining;
+                } else {
+                    // Random variations centered around par based slightly on skill rating
+                    const rand = Math.random() * 10;
+                    let holeScore = par;
+                    if (rand < player.skill - 8.5) {
+                        holeScore -= 1; // Birdie
+                        relativeScoreRemaining += 1;
+                    } else if (rand > 8.0) {
+                        holeScore += 1; // Bogey
+                        relativeScoreRemaining -= 1;
+                    }
+                    scorecard[i] = holeScore;
+                }
+            }
+            player.scorecard = scorecard;
+        }
+
+        // Dynamic Sync pipeline that crawls active ESPN tournament endpoints
+        async function fetchLiveTournamentScores() {
+            const syncIcon = document.getElementById("syncIcon");
+            if (syncIcon) syncIcon.classList.add("animate-spin");
+
+            const updateIndicatorStr = (text, isSpinning, dotColorClass) => {
+                const dot = document.getElementById("syncIndicatorDot");
+                const txt = document.getElementById("syncText");
+                if (txt) txt.innerText = text;
+                if (dot) {
+                    dot.className = `w-2.5 h-2.5 rounded-full ${dotColorClass} ${isSpinning ? 'animate-ping' : ''}`;
+                }
+            };
+
+            updateIndicatorStr("Syncing...", true, "bg-amber-500");
+
+            // List of potential reliable ESPN Golf Scoreboard/Leaderboard endpoints
+            const urls = [
+                "https://site.api.espn.com/apis/site/v2/sports/golf/leaderboard",
+                "https://site.api.espn.com/apis/site/v2/sports/golf/pga/scoreboard"
+            ];
+
+            let rawData = null;
+            let successUrl = "";
+
+            for (const url of urls) {
+                try {
+                    const response = await fetch(url, { method: "GET", credentials: "omit" });
+                    if (response.ok) {
+                        const json = await response.json();
+                        if (json && json.events && json.events.length > 0) {
+                            rawData = json;
+                            successUrl = url;
+                            break;
+                        }
+                    }
+                } catch (e) {
+                    console.warn(`Fetch to ${url} failed, trying next fallback...`, e);
+                }
+            }
+
+            if (!rawData) {
+                // If direct fail, try a public CORS workaround wrapper
+                try {
+                    const proxyUrl = "https://api.allorigins.win/get?url=" + encodeURIComponent("https://site.api.espn.com/apis/site/v2/sports/golf/leaderboard");
+                    const res = await fetch(proxyUrl);
+                    if (res.ok) {
+                        const wrapperObj = await res.json();
+                        rawData = JSON.parse(wrapperObj.contents);
+                    }
+                } catch (err) {
+                    console.error("CORS proxy endpoint failed too", err);
+                }
+            }
+
+            if (rawData && rawData.events && rawData.events[0]) {
+                try {
+                    const event = rawData.events[0];
+                    const competition = event.competitions[0];
+                    const competitors = competition.competitors || [];
+                    
+                    let syncCount = 0;
+
+                    // Map competitors to drafted players using fuzzy name matching
+                    players.forEach(p => {
+                        const matched = findLivePlayerInLeaderboard(p.name, competitors);
+                        if (matched) {
+                            // Extract Score
+                            let scoreVal = 0;
+                            let thruVal = 18;
+                            let roundList = [0, 0, 0, 0];
+                            let teeTimeVal = null;
+
+                            if (matched.score) {
+                                // ESPN structure
+                                scoreVal = parseInt(matched.score.value);
+                                if (isNaN(scoreVal)) {
+                                    scoreVal = matched.score.displayValue === "E" ? 0 : 0;
+                                }
+                            } else if (matched.stats) {
+                                // Google Sports structure
+                                scoreVal = parseInt(matched.stats["above par total"]);
+                                if (isNaN(scoreVal)) scoreVal = 0;
+                                thruVal = parseInt(matched.stats["current hole"]) || 18;
+                            }
+
+                            // Extract Thru progress and Tee Time status details
+                            if (matched.status) {
+                                if (matched.status.type && matched.status.type.detail) {
+                                    const detail = matched.status.type.detail;
+                                    const detailLower = detail.toLowerCase();
+                                    
+                                    if (detailLower.includes("thru")) {
+                                        thruVal = parseInt(detail.replace(/[^0-9]/g, "")) || 18;
+                                    } else if (detailLower.includes("am") || detailLower.includes("pm")) {
+                                        thruVal = 0; // hasn't started yet
+                                        teeTimeVal = detail; // Capture the official tee time detail string
+                                    } else if (detailLower === "f" || detailLower.includes("finished")) {
+                                        thruVal = 18;
+                                    } else if (detailLower === "scheduled" || detailLower.includes("upcoming") || detailLower.includes("pre")) {
+                                        thruVal = 0;
+                                        // Try to pull tee time from shortDetail if available (e.g. "12:45 PM")
+                                        if (matched.status.type.shortDetail && (matched.status.type.shortDetail.toLowerCase().includes("am") || matched.status.type.shortDetail.toLowerCase().includes("pm"))) {
+                                            teeTimeVal = matched.status.type.shortDetail;
+                                        }
+                                    }
+                                }
+                            }
+
+                            // Fallback to native competitor.teeTime ISO format if status details didn't hold it
+                            if (thruVal === 0 && !teeTimeVal) {
+                                if (matched.teeTime) {
+                                    try {
+                                        const dateObj = new Date(matched.teeTime);
+                                        if (!isNaN(dateObj.getTime())) {
+                                            teeTimeVal = dateObj.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+                                        } else {
+                                            teeTimeVal = matched.teeTime;
+                                        }
+                                    } catch (e) {
+                                        teeTimeVal = matched.teeTime;
+                                    }
+                                }
+                            }
+
+                            // Extract R1-R4
+                            if (matched.linescores) {
+                                matched.linescores.forEach((l, idx) => {
+                                    if (idx < 4 && l.value) {
+                                        roundList[idx] = parseInt(l.value) - TOTAL_PAR;
+                                    }
+                                });
+                            } else if (matched.stats) {
+                                for (let r = 1; r <= 4; r++) {
+                                    const rdStrokes = parseInt(matched.stats[`round${r} strokes`]);
+                                    if (rdStrokes > 0) {
+                                        roundList[r - 1] = rdStrokes - TOTAL_PAR;
+                                    }
+                                }
+                            }
+
+                            // Update local player entity
+                            p.currentScore = scoreVal;
+                            p.thru = thruVal;
+                            p.rounds = roundList;
+                            
+                            // CRITICAL FIX: Only overwrite teeTime if we actually retrieved a new valid one from the API
+                            if (teeTimeVal && teeTimeVal.trim() !== "") {
+                                p.teeTime = teeTimeVal;
+                            }
+                            
+                            // Re-calculate mock scorecard matching total score
+                            generateCalculatedScorecard(p);
+                            syncCount++;
+                        }
+                    });
+
+                    if (syncCount > 0) {
+                        lastSyncTime = new Date();
+                        saveState();
+                        generateManualInputFields();
+                        renderAll();
+                        updateIndicatorDot(true);
+                    } else {
+                        updateIndicatorDot(false, "No drafted players found");
+                    }
+
+                } catch (err) {
+                    console.error("Error processing live tournament scores", err);
+                    updateIndicatorDot(false, "Process Error");
+                }
+            } else {
+                updateIndicatorDot(false, "Connection Fail");
+            }
+
+            if (syncIcon) syncIcon.classList.remove("animate-spin");
+        }
+
+        // Fuzzy match helper to link ESPN player listings to original local rosters
+        function findLivePlayerInLeaderboard(localName, competitors) {
+            const clean = (n) => n.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z]/g, "");
+            const localClean = clean(localName);
+
+            // Attempt Exact & Substring comparisons
+            let match = competitors.find(c => {
+                if (!c.athlete) return false;
+                const cName = clean(c.athlete.displayName || "");
+                return cName.includes(localClean) || localClean.includes(cName);
+            });
+
+            if (!match) {
+                // Secondary check: match last name first word
+                const parts = localName.split(" ");
+                if (parts.length > 1) {
+                    const lastName = clean(parts[parts.length - 1]);
+                    match = competitors.find(c => {
+                        if (!c.athlete) return false;
+                        const cName = clean(c.athlete.displayName || "");
+                        return cName.includes(lastName);
+                    });
+                }
+            }
+            return match;
+        }
+
+        // Refreshes bottom state indicator dot panel
+        function updateIndicatorDot(isSuccess, errorReason = "") {
+            const dot = document.getElementById("syncIndicatorDot");
+            const txt = document.getElementById("syncText");
+            const timeTxt = document.getElementById("syncTimeText");
+
+            if (isSuccess) {
+                dot.className = "w-2.5 h-2.5 rounded-full bg-emerald-500";
+                txt.innerText = "Synced Live";
+                txt.className = "font-bold text-emerald-400";
+                if (lastSyncTime) {
+                    timeTxt.innerText = "Updated at " + lastSyncTime.toLocaleTimeString();
+                }
+            } else {
+                dot.className = "w-2.5 h-2.5 rounded-full bg-rose-500 animate-pulse";
+                txt.innerText = "Sync Failed (" + (errorReason || "CORS") + ")";
+                txt.className = "font-bold text-rose-400";
+                timeTxt.innerText = lastSyncTime ? "Last sync: " + lastSyncTime.toLocaleTimeString() : "No local baseline data";
+            }
+        }
+
+        // Computes and builds UI tables, betting status boxes, and math totals
+        function renderAll() {
+            renderBetsDisplay();
+            renderTable();
+        }
+
+        // Math Logic for Low-Net Combined and Single-Scorers
+        function renderBetsDisplay() {
+            // Totals
+            let geoffTotal = 0;
+            let joshTotal = 0;
+
+            // Tracks the absolute lowest single scorer
+            let lowestSinglePlayer = null;
+
+            players.forEach(p => {
+                if (p.owner === GEOFF_TEAM) {
+                    geoffTotal += p.currentScore;
+                } else {
+                    joshTotal += p.currentScore;
+                }
+
+                if (!lowestSinglePlayer || p.currentScore < lowestSinglePlayer.currentScore) {
+                    lowestSinglePlayer = p;
+                }
+            });
+
+            // Format Combined text strings
+            const formatRelative = (v) => v === 0 ? "E" : (v > 0 ? `+${v}` : `${v}`);
+            
+            document.getElementById("geoffCombinedScore").innerText = formatRelative(geoffTotal);
+            document.getElementById("geoffCombinedStrokes").innerText = `${TOTAL_PAR * 5 + geoffTotal} Strokes`;
+            
+            document.getElementById("joshCombinedScore").innerText = formatRelative(joshTotal);
+            document.getElementById("joshCombinedStrokes").innerText = `${TOTAL_PAR * 5 + joshTotal} Strokes`;
+
+            // Render Combined Bet Status Panel
+            const compDiv = document.getElementById("combinedBetWinnerBar");
+            const strokesLead = Math.abs(geoffTotal - joshTotal);
+
+            if (geoffTotal < joshTotal) {
+                compDiv.innerHTML = `
+                    <span class="text-teal-400 flex items-center gap-1.5"><i class="fa-solid fa-flag-checkered"></i> Geoff leading</span>
+                    <span class="bg-teal-500/10 text-teal-300 border border-teal-500/20 px-2 py-0.5 rounded text-[10px] uppercase font-bold">${strokesLead} stroke lead</span>
+                `;
+            } else if (joshTotal < geoffTotal) {
+                compDiv.innerHTML = `
+                    <span class="text-indigo-400 flex items-center gap-1.5"><i class="fa-solid fa-flag-checkered"></i> Josh leading</span>
+                    <span class="bg-indigo-500/10 text-indigo-300 border border-indigo-500/20 px-2 py-0.5 rounded text-[10px] uppercase font-bold">${strokesLead} stroke lead</span>
+                `;
+            } else {
+                compDiv.innerHTML = `
+                    <span class="text-slate-400 flex items-center gap-1.5"><i class="fa-solid fa-arrows-left-right"></i> Direct Tie</span>
+                    <span class="bg-slate-500/10 text-slate-300 border border-slate-500/20 px-2 py-0.5 rounded text-[10px] uppercase font-bold">0 stroke difference</span>
+                `;
+            }
+
+            // Render Single Player Lowest Bet Status
+            if (lowestSinglePlayer) {
+                const badge = document.getElementById("lowPlayerBadge");
+                const ownerText = lowestSinglePlayer.owner;
+                
+                badge.innerText = ownerText + "'s Pick";
+                if (ownerText === GEOFF_TEAM) {
+                    badge.className = "text-[9px] font-bold px-2 py-0.5 rounded uppercase border bg-teal-500/10 text-teal-300 border-teal-500/30";
+                } else {
+                    badge.className = "text-[9px] font-bold px-2 py-0.5 rounded uppercase border bg-indigo-500/10 text-indigo-300 border-indigo-500/30";
+                }
+
+                document.getElementById("lowPlayerName").innerText = lowestSinglePlayer.name;
+                
+                const scoreDisplay = lowestSinglePlayer.currentScore < 0 ? lowestSinglePlayer.currentScore : (lowestSinglePlayer.currentScore === 0 ? "Even" : `+${lowestSinglePlayer.currentScore}`);
+                document.getElementById("lowPlayerScoreDesc").innerText = `Currently sitting at ${scoreDisplay} (${lowestSinglePlayer.thru === 18 ? "F" : "Thru " + lowestSinglePlayer.thru})`;
+
+                // Winner Bar
+                const singleWinnerBar = document.getElementById("singleBetWinnerBar");
+                singleWinnerBar.innerHTML = `
+                    <span class="flex items-center gap-1.5 text-amber-400"><i class="fa-solid fa-crown text-amber-500"></i> ${ownerText} in control</span>
+                    <span class="bg-amber-500/10 text-amber-300 border border-amber-500/20 px-2 py-0.5 rounded text-[10px] uppercase font-bold">$10.00 Position</span>
+                `;
+            }
+        }
+
+        function renderTable() {
+            const tbody = document.getElementById("leaderboardBody");
+            tbody.innerHTML = "";
+
+            // Prepare Sorted Copy
+            let listToRender = [...players];
+            if (sortField === 'score') {
+                listToRender.sort((a, b) => a.currentScore - b.currentScore);
+            } else {
+                listToRender.sort((a, b) => a.owner.localeCompare(b.owner));
+            }
+
+            const formatRoundVal = (val) => {
+                if (val === undefined || val === 0) return "-";
+                const absoluteVal = TOTAL_PAR + val;
+                return absoluteVal;
+            };
+
+            listToRender.forEach((p, idx) => {
+                const isGeoff = p.owner === GEOFF_TEAM;
+                const ownerBadgeClass = isGeoff 
+                    ? "bg-teal-500/10 text-teal-300 border border-teal-500/30" 
+                    : "bg-indigo-500/10 text-indigo-300 border border-indigo-500/30";
+                
+                const scoreStr = p.currentScore < 0 ? p.currentScore : (p.currentScore === 0 ? "E" : `+${p.currentScore}`);
+                const scoreClass = p.currentScore < 0 ? "text-emerald-400 font-bold" : (p.currentScore === 0 ? "text-slate-300" : "text-amber-500");
+
+                const r1 = p.rounds[0] !== undefined && p.rounds[0] !== 0 ? formatRoundVal(p.rounds[0]) : "-";
+                const r2 = p.rounds[1] !== undefined && p.rounds[1] !== 0 ? formatRoundVal(p.rounds[1]) : "-";
+                const r3 = p.rounds[2] !== undefined && p.rounds[2] !== 0 ? formatRoundVal(p.rounds[2]) : "-";
+                const r4 = p.rounds[3] !== undefined && p.rounds[3] !== 0 ? formatRoundVal(p.rounds[3]) : "-";
+
+                // Generate display column for Thru or Tee Time
+                const thruDisplay = p.thru === 18 
+                    ? '<span class="text-slate-400 font-semibold text-xs bg-zinc-800/40 px-2 py-0.5 rounded border border-zinc-700/30">F</span>' 
+                    : (p.thru === 0 
+                        ? (p.teeTime ? `<span class="inline-flex items-center gap-1.5 text-amber-400 bg-amber-500/10 border border-amber-500/20 px-2.5 py-1 rounded text-[11px] font-bold"><i class="fa-regular fa-clock text-[10px]"></i> ${p.teeTime}</span>` : "Upcoming") 
+                        : `<span class="text-slate-200 font-semibold">Thru ${p.thru}</span>`);
+
+                const row = document.createElement("tr");
+                row.className = "hover:bg-zinc-850 cursor-pointer transition duration-100 group";
+                row.onclick = () => openScorecard(p.id);
+
+                row.innerHTML = `
+                    <td class="py-3.5 px-4 text-center text-slate-400 font-bold group-hover:text-white transition-colors">${idx + 1}</td>
+                    <td class="py-3.5 px-4 font-semibold text-white group-hover:text-emerald-400 transition-colors">
+                        ${p.name}
+                    </td>
+                    <td class="py-3.5 px-4 font-bold">
+                        <span class="text-[11px] font-bold px-2.5 py-1 rounded-md ${ownerBadgeClass}">
+                            ${p.owner}
+                        </span>
+                    </td>
+                    <td class="py-3.5 px-4 text-center ${scoreClass} font-black">${scoreStr}</td>
+                    <td class="py-3.5 px-4 text-center text-xs">${thruDisplay}</td>
+                    <td class="py-3.5 px-4 text-center text-xs text-slate-500">${r1}</td>
+                    <td class="py-3.5 px-4 text-center text-xs text-slate-500">${r2}</td>
+                    <td class="py-3.5 px-4 text-center text-xs text-slate-500">${r3}</td>
+                    <td class="py-3.5 px-4 text-center text-xs text-slate-500">${r4}</td>
+                `;
+                tbody.appendChild(row);
+            });
+        }
+
+        function changeSort(field) {
+            sortField = field;
+            const scrBtn = document.getElementById("sortScoreBtn");
+            const ownBtn = document.getElementById("sortOwnerBtn");
+            
+            if (field === 'score') {
+                scrBtn.className = "px-3 py-1.5 rounded-md text-[10px] font-extrabold uppercase tracking-wider transition bg-emerald-600 text-white";
+                ownBtn.className = "px-3 py-1.5 rounded-md text-[10px] font-extrabold uppercase tracking-wider transition text-slate-400 hover:text-white";
+            } else {
+                ownBtn.className = "px-3 py-1.5 rounded-md text-[10px] font-extrabold uppercase tracking-wider transition bg-emerald-600 text-white";
+                scrBtn.className = "px-3 py-1.5 rounded-md text-[10px] font-extrabold uppercase tracking-wider transition text-slate-400 hover:text-white";
+            }
+            renderTable();
+        }
+
+        // Generates the real-time override input fields in the sidebar
+        function generateManualInputFields() {
+            const gContainer = document.getElementById("geoffManualInputs");
+            const jContainer = document.getElementById("joshManualInputs");
+
+            gContainer.innerHTML = "";
+            jContainer.innerHTML = "";
+
+            players.forEach(p => {
+                const row = document.createElement("div");
+                row.className = "flex flex-col bg-zinc-950/85 p-3 rounded-xl border border-zinc-800/80 gap-2.5 hover:border-zinc-700 transition";
+                row.innerHTML = `
+                    <div class="flex items-center justify-between gap-2">
+                        <span class="text-xs font-semibold text-slate-200 truncate">${p.name}</span>
+                        <span class="text-[9px] font-bold px-1.5 py-0.5 rounded bg-zinc-900 border border-zinc-800 text-slate-400">${p.owner}</span>
+                    </div>
+                    <div class="grid grid-cols-3 gap-1.5 items-center">
+                        <div class="flex flex-col gap-0.5">
+                            <span class="text-[9px] text-slate-500 font-bold uppercase">Score</span>
+                            <input id="input_${p.id}_score" type="number" value="${p.currentScore}" 
+                                oninput="onScoreInputChange('${p.id}')"
+                                class="bg-zinc-900 border border-zinc-700 text-white rounded px-2 py-1 w-full text-center font-bold text-xs focus:ring-1 focus:ring-emerald-500 focus:outline-none" placeholder="E">
+                        </div>
+                        <div class="flex flex-col gap-0.5">
+                            <span class="text-[9px] text-slate-500 font-bold uppercase">Thru</span>
+                            <input id="input_${p.id}_thru" type="number" min="0" max="18" value="${p.thru}" 
+                                oninput="onScoreInputChange('${p.id}')"
+                                class="bg-zinc-900 border border-zinc-700 text-white rounded px-1.5 py-1 w-full text-center text-xs focus:ring-1 focus:ring-emerald-500 focus:outline-none" placeholder="18">
+                        </div>
+                        <div class="flex flex-col gap-0.5">
+                            <span class="text-[9px] text-slate-500 font-bold uppercase">Tee Time</span>
+                            <input id="input_${p.id}_teetime" type="text" value="${p.teeTime || ''}" 
+                                oninput="onTeeTimeInputChange('${p.id}')"
+                                class="bg-zinc-900 border border-zinc-700 text-white rounded px-1.5 py-1 w-full text-center text-xs focus:ring-1 focus:ring-emerald-500 focus:outline-none placeholder-zinc-800" 
+                                placeholder="8:15 AM"
+                                ${p.thru > 0 ? 'disabled bg-zinc-950 text-zinc-600 border-zinc-850 cursor-not-allowed' : ''}>
+                        </div>
+                    </div>
+                `;
+
+                if (p.owner === GEOFF_TEAM) {
+                    gContainer.appendChild(row);
+                } else {
+                    jContainer.appendChild(row);
+                }
+            });
+        }
+
+        // Auto-calculates variables immediately when you edit override inputs
+        function onScoreInputChange(playerId) {
+            const player = players.find(p => p.id === playerId);
+            if (!player) return;
+
+            const scoreInp = document.getElementById(`input_${playerId}_score`);
+            const thruInp = document.getElementById(`input_${playerId}_thru`);
+
+            if (scoreInp && thruInp) {
+                const nextScore = parseInt(scoreInp.value);
+                const nextThru = Math.min(18, Math.max(0, parseInt(thruInp.value)));
+
+                // Update properties
+                player.currentScore = isNaN(nextScore) ? 0 : nextScore;
+                player.thru = isNaN(nextThru) ? 18 : nextThru;
+                player.rounds[0] = player.currentScore; // Keep primary round aligned
+                
+                // Re-distribute scores along the scorecard holes
+                generateCalculatedScorecard(player);
+                
+                generateManualInputFields();
+                renderAll();
+                saveState();
+            }
+        }
+
+        // Monitors user text entries in the custom Tee Time sidebar input
+        function onTeeTimeInputChange(playerId) {
+            const player = players.find(p => p.id === playerId);
+            if (!player) return;
+
+            const teeTimeInp = document.getElementById(`input_${playerId}_teetime`);
+            if (teeTimeInp) {
+                player.teeTime = teeTimeInp.value.trim() || null;
+                renderAll();
+                saveState();
+            }
+        }
+
+        function openScorecard(playerId) {
+            const player = players.find(p => p.id === playerId);
+            if (!player) return;
+
+            // Set Meta information
+            const ownerBadge = document.getElementById("modalPlayerOwner");
+            ownerBadge.innerText = `Owner: ${player.owner}`;
+            if (player.owner === GEOFF_TEAM) {
+                ownerBadge.className = "text-[10px] font-black uppercase tracking-widest border bg-teal-500/10 text-teal-300 border-teal-500/30";
+            } else {
+                ownerBadge.className = "text-[10px] font-black uppercase tracking-widest border bg-indigo-500/10 text-indigo-300 border-indigo-500/30";
+            }
+
+            document.getElementById("modalPlayerName").innerText = player.name;
+
+            const formatScore = (val) => val === 0 ? "E" : (val > 0 ? `+${val}` : `${val}`);
+            document.getElementById("modalTotalScore").innerText = formatScore(player.currentScore);
+            document.getElementById("modalTotalStrokes").innerText = TOTAL_PAR + player.currentScore;
+            
+            document.getElementById("modalProgressThru").innerHTML = player.thru === 18 
+                ? "Finished" 
+                : (player.thru === 0 
+                    ? (player.teeTime ? `<span class="text-amber-400 font-bold flex items-center justify-center gap-1.5"><i class="fa-regular fa-clock"></i> ${player.teeTime}</span>` : "Upcoming") 
+                    : `Thru ${player.thru}`);
+
+            // Fill individual hole boxes
+            let outTotal = 0;
+            let inTotal = 0;
+
+            for (let hole = 1; hole <= 18; hole++) {
+                const par = HOLE_PARS[hole - 1];
+                const score = player.scorecard[hole - 1];
+                const cell = document.getElementById(`hole_${hole}`);
+
+                if (score !== undefined && score !== null) {
+                    cell.innerText = score;
+                    if (hole <= 9) outTotal += score;
+                    else inTotal += score;
+
+                    // Apply visual styling class based on golf terms
+                    if (score < par) {
+                        cell.className = "py-3 bg-emerald-500/15 text-emerald-400 font-bold border-b-2 border-emerald-500/40";
+                    } else if (score > par) {
+                        cell.className = "py-3 bg-rose-500/15 text-rose-400 font-bold border-b-2 border-rose-500/40";
+                    } else {
+                        cell.className = "py-3 bg-zinc-800/35 text-slate-300 font-medium";
+                    }
+                } else {
+                    cell.innerText = "--";
+                    cell.className = "py-3 text-slate-600 font-light";
+                }
+            }
+
+            // Fill Out / In Summary Scores
+            document.getElementById("modalScoreOut").innerText = outTotal > 0 ? outTotal : "--";
+            document.getElementById("modalScoreIn").innerText = inTotal > 0 ? inTotal : "--";
+            
+            const scoreSum = outTotal + inTotal;
+            const finalScoreCell = document.getElementById("modalScoreTotal");
+            
+            if (scoreSum > 0) {
+                finalScoreCell.innerText = scoreSum;
+                const scoreDiff = scoreSum - TOTAL_PAR;
+                if (scoreDiff < 0) {
+                    finalScoreCell.className = "py-3 text-emerald-400 font-black text-sm";
+                } else if (scoreDiff > 0) {
+                    finalScoreCell.className = "py-3 text-amber-500 font-black text-sm";
+                } else {
+                    finalScoreCell.className = "py-3 text-slate-200 font-black text-sm";
+                }
+            } else {
+                finalScoreCell.innerText = "--";
+                finalScoreCell.className = "py-3 text-slate-600";
+            }
+
+            const modal = document.getElementById("scorecardModal");
+            modal.style.display = "flex";
+        }
+
+        function closeScorecard() {
+            document.getElementById("scorecardModal").style.display = "none";
+        }
+    </script>
+</body>
+</html>
