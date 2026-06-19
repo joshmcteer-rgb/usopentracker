@@ -9,7 +9,7 @@
   <!-- React and ReactDOM Production CDNs -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.3.1/umd/react.production.min.js" crossorigin></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.3.1/umd/react-dom.production.min.js" crossorigin></script>
-  <!-- Babel Standalone for live client compilation -->
+  <!-- Babel Standalone for compilation -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.26.2/babel.min.js" crossorigin></script>
   <script>
     tailwind.config = {
@@ -56,7 +56,6 @@
   <script type="text/babel" data-type="module" data-presets="env,react">
     const { useState, useEffect, useRef } = React;
 
-    // SVG Icon Helpers
     const CrownIcon = ({ className = "w-6 h-6" }) => (
       <svg className={className} fill="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
         <path d="M2 22h20v-2H2v2zm1-3l2-12 5 4 4-8 4 8 5-4 2 12H3z"/>
@@ -89,38 +88,108 @@
     );
 
     function App() {
-      // Josh's Team (You)
+      // Your Team (Josh) - Preloaded with Live Round 2 values as of June 19, 2026
       const [joshTeam, setJoshTeam] = useState([
         { id: 'jo1', name: "Rory McIlroy", score: -1, thru: "F", today: -1, flash: "" },
-        { id: 'jo2', name: "Xander Schauffele", score: -1, thru: "7", today: -1, flash: "" },
-        { id: 'jo3', name: "Matt Fitzpatrick", score: -3, thru: "8", today: -3, flash: "" },
-        { id: 'jo4', name: "Tommy Fleetwood", score: 0, thru: "E", today: 0, flash: "" },
-        { id: 'jo5', name: "Russell Henley", score: 2, thru: "8", today: 2, flash: "" }
+        { id: 'jo2', name: "Xander Schauffele", score: -2, thru: "12", today: -3, flash: "" },
+        { id: 'jo3', name: "Matt Fitzpatrick", score: -1, thru: "13", today: 2, flash: "" },
+        { id: 'jo4', name: "Tommy Fleetwood", score: 0, thru: "F", today: 0, flash: "" },
+        { id: 'jo5', name: "Russell Henley", score: 2, thru: "13", today: 2, flash: "" }
       ]);
 
-      // Geoff's Team (His Team)
+      // Geoff's Team - Preloaded with Live Round 2 values as of June 19, 2026
       const [geoffTeam, setGeoffTeam] = useState([
-        { id: 'g1', name: "Scottie Scheffler", score: 2, thru: "F", today: 2, flash: "" },
-        { id: 'g2', name: "Jon Rahm", score: -2, thru: "5", today: -2, flash: "" },
-        { id: 'g3', name: "Cameron Young", score: 2, thru: "E", today: 2, flash: "" },
-        { id: 'g4', name: "Tyrrell Hatton", score: 4, thru: "E", today: 4, flash: "" },
-        { id: 'g5', name: "Wyndham Clark", score: -6, thru: "7", today: -6, flash: "" }
+        { id: 'g1', name: "Scottie Scheffler", score: 2, thru: "F", today: 0, flash: "" },
+        { id: 'g2', name: "Jon Rahm", score: 0, thru: "10", today: 2, flash: "" },
+        { id: 'g3', name: "Cameron Young", score: 2, thru: "F", today: 0, flash: "" },
+        { id: 'g4', name: "Tyrrell Hatton", score: 4, thru: "F", today: 0, flash: "" },
+        { id: 'g5', name: "Wyndham Clark", score: -7, thru: "13", today: -1, flash: "" }
       ]);
 
-      // State Configs
-      const [apiKey, setApiKey] = useState("");
+      // Robust fuzzy player name matching (supports "Cam" vs "Cameron" and "Matt" vs "Matthew")
+      const isNameMatch = (apiFirst, apiLast, targetFull) => {
+        const targetClean = targetFull.toLowerCase().replace(/[^a-z]/g, '');
+        const apiFirstClean = apiFirst.toLowerCase().replace(/[^a-z]/g, '');
+        const apiLastClean = apiLast.toLowerCase().replace(/[^a-z]/g, '');
+        const apiFullClean = apiFirstClean + apiLastClean;
+
+        if (apiFullClean === targetClean) return true;
+
+        const targetParts = targetFull.toLowerCase().split(/\s+/);
+        if (targetParts.length >= 2) {
+          const targetFirst = targetParts[0].replace(/[^a-z]/g, '');
+          const targetLast = targetParts[targetParts.length - 1].replace(/[^a-z]/g, '');
+
+          if (apiLastClean === targetLast) {
+            // Check prefix (e.g., Cam / Cameron, Matt / Matthew)
+            if (apiFirstClean.startsWith(targetFirst) || targetFirst.startsWith(apiFirstClean)) {
+              if (Math.min(apiFirstClean.length, targetFirst.length) >= 3) {
+                return true;
+              }
+            }
+            // Handle matching initials
+            if (apiFirstClean[0] === targetFirst[0]) {
+              return true;
+            }
+          }
+        }
+        return false;
+      };
+
+      // Helper to dynamically clean up active golf status strings
+      const formatThru = (thru) => {
+        if (!thru) return "Not Started";
+        const clean = String(thru).trim().toLowerCase();
+        
+        // Match standard tee times containing colon separators or time markers
+        if (clean.includes(':') || clean.includes('am') || clean.includes('pm')) {
+          return `Tee Time: ${thru}`;
+        }
+        if (clean === 'f' || clean === 'final' || clean === 'finished') {
+          return 'Finished';
+        }
+        if (clean === 'e' || clean === 'even' || clean === 'ns' || clean === 'not started') {
+          return 'Not Started';
+        }
+        // If it's a raw hole number, label it as thru
+        if (!isNaN(clean)) {
+          return `Thru ${thru}`;
+        }
+        return thru;
+      };
+
+      // Persistent LocalStorage hook preloaded with your RapidAPI Key
+      const [apiKey, setApiKey] = useState(() => {
+        return localStorage.getItem('us_open_tracker_api_key') || "f901bd0845msh683e67aacee3761p1e31b4jsn583747c948bc";
+      });
+
+      const [tournId, setTournId] = useState("026"); // PGA Tour US Open ID
+      const [year, setYear] = useState("2026");
+      const [roundId, setRoundId] = useState("0"); // 0 for most recent/auto
       const [isSimulating, setIsSimulating] = useState(false);
+      const [isLoading, setIsLoading] = useState(false);
       const [activeTab, setActiveTab] = useState('dashboard'); // dashboard | api_config | logs
       const [isEditingScores, setIsEditingScores] = useState(false);
+      const [lastSyncTime, setLastSyncTime] = useState("Never");
+      const [apiStatus, setApiStatus] = useState("idle"); // idle | active | success | error
+      const [rawPayload, setRawPayload] = useState(null); // Collapsible raw json debugger
       
+      // Custom dialog modal fallback to replace browser alerts
+      const [modalMessage, setModalMessage] = useState(null);
+
       // Temporary staging states for bulk edits
       const [editGeoff, setEditGeoff] = useState([]);
       const [editJosh, setEditJosh] = useState([]);
 
       const [logs, setLogs] = useState([
-        { time: "10:23 AM", text: "🏆 Josh (You) vs. Geoff tracker aligned with corrected draft ownership." },
-        { time: "10:24 AM", text: "💡 Adjust scores manually, toggle live simulation, or input API keys." }
+        { time: "11:45 AM", text: "🏆 Team rosters assigned correctly: Josh (Rory, Xander, Matt, Tommy, Russell) vs. Geoff (Scottie, Jon, Cameron, Tyrrell, Wyndham)." },
+        { time: "11:46 AM", text: "💡 Live API integration loaded with your coded RapidAPI Key!" }
       ]);
+
+      // Sync API Key to Local Storage securely
+      useEffect(() => {
+        localStorage.setItem('us_open_tracker_api_key', apiKey);
+      }, [apiKey]);
 
       // Statistics & side-bet calculations
       const joshTotal = joshTeam.reduce((sum, p) => sum + p.score, 0);
@@ -149,20 +218,21 @@
 
       // Open Bulk Edit staging state
       const openBulkEdit = () => {
-        setEditJosh(joshTeam.map(p => ({ ...p })));
         setEditGeoff(geoffTeam.map(p => ({ ...p })));
+        setEditJosh(joshTeam.map(p => ({ ...p })));
         setIsEditingScores(true);
       };
 
       // Save Bulk Score updates
       const saveBulkScores = () => {
-        setJoshTeam(editJosh);
         setGeoffTeam(editGeoff);
+        setJoshTeam(editJosh);
         setIsEditingScores(false);
+        setLastSyncTime(new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }));
         
         const timestamp = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
         setLogs(prev => [
-          { time: timestamp, text: "📝 Scoreboard updated manually. Side-bet margins re-evaluated." },
+          { time: timestamp, text: "📝 Live scores updated manually." },
           ...prev
         ]);
       };
@@ -196,7 +266,202 @@
         }, 1500);
       };
 
-      // Simulator Loop
+      // Real live fetch routine querying Slash Golf Live Leaderboard
+      const fetchLiveLeaderboard = async () => {
+        if (!apiKey) {
+          setModalMessage({
+            title: "RapidAPI Key Needed",
+            body: "To pull live leaderboard data from the courses, please enter your RapidAPI Key in the 'API Setup' tab."
+          });
+          return;
+        }
+
+        setIsLoading(true);
+        setApiStatus("active");
+        const timestamp = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+        setLogs(prev => [{ time: timestamp, text: `🔄 Fetching live standings from Slash Golf API (Tourn: ${tournId}, Year: ${year}, RoundOverride: ${roundId === "0" ? "Auto" : roundId})...` }, ...prev]);
+
+        try {
+          // Construct live query url supporting optional Round Override
+          let targetUrl = `https://live-golf-data.p.rapidapi.com/leaderboard?orgId=1&tournId=${tournId}&year=${year}`;
+          if (roundId !== "0") {
+            targetUrl += `&roundId=${roundId}`;
+          }
+
+          const response = await fetch(targetUrl, {
+            method: 'GET',
+            headers: {
+              'x-rapidapi-key': apiKey,
+              'x-rapidapi-host': 'live-golf-data.p.rapidapi.com'
+            }
+          });
+
+          if (!response.ok) {
+            throw new Error(`RapidAPI request failed: ${response.statusText}`);
+          }
+
+          const data = await response.json();
+          setRawPayload(data); // Store for Raw JSON inspector debugging
+
+          const rows = data.leaderboardRows || data.leaderboard || [];
+
+          if (rows.length === 0) {
+            throw new Error("No player rows returned in leaderboard payload. Is this tournament running currently? Double check the Tournament ID in API Setup.");
+          }
+
+          // Parse and match incoming data
+          const apiLogs = [];
+          
+          const updateTeamRoster = (currentRoster) => {
+            return currentRoster.map(p => {
+              // Fuzzy name lookup matching Nicknames and prefixes
+              const matchedRow = rows.find(row => 
+                isNameMatch(row.firstName || '', row.lastName || '', p.name)
+              );
+
+              if (matchedRow) {
+                // Determine Score (interpreting "E", "EVEN", and standard string formats)
+                let scoreVal = 0;
+                const totalStr = String(matchedRow.total).trim();
+                if (totalStr === "E" || totalStr.toLowerCase() === "even" || totalStr === "0" || totalStr.toLowerCase() === "even par") {
+                  scoreVal = 0;
+                } else {
+                  const parsed = parseInt(totalStr.replace('+', ''));
+                  scoreVal = isNaN(parsed) ? p.score : parsed;
+                }
+
+                // Determine Thru Hole dynamically
+                let thruVal = p.thru;
+                if (matchedRow.roundComplete || matchedRow.status === "finished") {
+                  thruVal = "F";
+                } else {
+                  // Fallbacks for various API schema keys
+                  const hole = matchedRow.thru !== undefined ? matchedRow.thru : 
+                               matchedRow.thruHole !== undefined ? matchedRow.thruHole :
+                               matchedRow.currentHole !== undefined ? matchedRow.currentHole : 
+                               matchedRow.lastHole;
+                  
+                  if (hole !== undefined && hole !== null && hole !== "" && String(hole) !== "0") {
+                    thruVal = String(hole);
+                  } else if (matchedRow.teeTime) {
+                    thruVal = matchedRow.teeTime;
+                  } else {
+                    thruVal = "E";
+                  }
+                }
+
+                const change = scoreVal - p.score;
+                let flashClass = "";
+                if (change < 0) flashClass = "flash-green";
+                else if (change > 0) flashClass = "flash-red";
+
+                apiLogs.push(`✅ API Synced ${p.name}: ${scoreVal > 0 ? '+' : ''}${scoreVal === 0 ? 'E' : scoreVal} (${formatThru(thruVal)})`);
+
+                return {
+                  ...p,
+                  score: scoreVal,
+                  thru: thruVal,
+                  flash: flashClass
+                };
+              } else {
+                apiLogs.push(`⚠️ No live tournament match found for ${p.name}`);
+                return p;
+              }
+            });
+          };
+
+          setJoshTeam(prev => updateTeamRoster(prev));
+          setGeoffTeam(prev => updateTeamRoster(prev));
+          setLastSyncTime(new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }));
+          setApiStatus("success");
+
+          setLogs(prev => [
+            { time: timestamp, text: "🟢 Live leaderboard successfully queried and recalculated!" },
+            ...apiLogs.map(l => ({ time: timestamp, text: l })),
+            ...prev
+          ]);
+
+          // Clear flashy animation styles
+          setTimeout(() => {
+            setJoshTeam(prev => prev.map(p => ({ ...p, flash: "" })));
+            setGeoffTeam(prev => prev.map(p => ({ ...p, flash: "" })));
+          }, 1500);
+
+        } catch (err) {
+          setApiStatus("error");
+          setLogs(prev => [{ time: timestamp, text: `❌ Live Fetch Error: ${err.message}` }, ...prev]);
+          setModalMessage({
+            title: "Failed to Query Live Standings",
+            body: `The API request returned an error: ${err.message}. If the scores are not up to date, try entering the exact Round number (like Round 2) instead of 'Auto' in the API Setup tab.`
+          });
+        } finally {
+          setIsLoading(false);
+        }
+      };
+
+      // Auto-polling on mount if key is available
+      useEffect(() => {
+        if (apiKey) {
+          fetchLiveLeaderboard();
+        }
+      }, []);
+
+      // Auto-detect U.S. Open ID from Slash Golf Schedule
+      const autoDiscoverTournId = async () => {
+        if (!apiKey) {
+          setModalMessage({
+            title: "RapidAPI Key Needed",
+            body: "Please enter your RapidAPI Key first to browse the tournament schedule."
+          });
+          return;
+        }
+
+        setIsLoading(true);
+        const timestamp = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+        setLogs(prev => [{ time: timestamp, text: "🔍 Auto-discovering U.S. Open tournament ID from 2026 PGA schedule..." }, ...prev]);
+
+        try {
+          const response = await fetch(`https://live-golf-data.p.rapidapi.com/schedule?orgId=1&year=${year}`, {
+            method: 'GET',
+            headers: {
+              'x-rapidapi-key': apiKey,
+              'x-rapidapi-host': 'live-golf-data.p.rapidapi.com'
+            }
+          });
+
+          if (!response.ok) {
+            throw new Error(`Schedule fetch failed: ${response.statusText}`);
+          }
+
+          const data = await response.json();
+          const scheduleList = data.schedule || [];
+          
+          const usOpenObj = scheduleList.find(t => 
+            t.name && (t.name.toLowerCase().includes("u.s. open") || t.name.toLowerCase().includes("us open"))
+          );
+
+          if (usOpenObj) {
+            setTournId(usOpenObj.tournId);
+            setLogs(prev => [{ time: timestamp, text: `✅ Auto-discovered U.S. Open ID: "${usOpenObj.tournId}" (${usOpenObj.name}).` }, ...prev]);
+            setModalMessage({
+              title: "Tournament ID Detected!",
+              body: `The schedule lookup found the "${usOpenObj.name}". The ID has been updated to "${usOpenObj.tournId}".`
+            });
+          } else {
+            throw new Error("Could not find any tournament matching 'US Open' in the schedule.");
+          }
+        } catch (err) {
+          setLogs(prev => [{ time: timestamp, text: `⚠️ Discovery failed: ${err.message}. Falling back to default ID '026'.` }, ...prev]);
+          setModalMessage({
+            title: "Discovery Failed",
+            body: `We couldn't parse the live schedule: ${err.message}. We kept the default U.S. Open ID '026'.`
+          });
+        } finally {
+          setIsLoading(false);
+        }
+      };
+
+      // Simulator loop
       useEffect(() => {
         let interval;
         if (isSimulating) {
@@ -207,9 +472,9 @@
             const randomPlayer = targetList[Math.floor(Math.random() * targetList.length)];
             
             const actionSeed = Math.random();
-            if (actionSeed < 0.4) {
+            if (actionSeed < 0.45) {
               handleScoreChange(randomTeam, randomPlayer.id, -1);
-            } else if (actionSeed < 0.7) {
+            } else if (actionSeed < 0.8) {
               handleScoreChange(randomTeam, randomPlayer.id, 1);
             } else {
               const nextThru = randomPlayer.thru === 'F' ? '1' : randomPlayer.thru === 'E' || randomPlayer.thru === '18' ? '1' : String(parseInt(randomPlayer.thru) + 1);
@@ -225,35 +490,32 @@
                 }
               }
             }
-          }, 6000);
+          }, 8000);
         }
         return () => clearInterval(interval);
       }, [isSimulating, joshTeam, geoffTeam]);
 
-      // Mock Fetch for API simulation
-      const triggerFetchMock = () => {
-        const timestamp = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
-        setLogs(prev => [
-          { time: timestamp, text: "🔄 Connecting to 'live-golf-data.p.rapidapi.com/leaderboard'..." },
-          { time: timestamp, text: "✅ RapidAPI fetch mock succeeded. Side-bets synced!" },
-          ...prev
-        ]);
-        
-        setJoshTeam(prev => prev.map(p => ({
-          ...p,
-          score: p.score + (Math.random() > 0.85 ? (Math.random() > 0.5 ? 1 : -1) : 0),
-          thru: p.thru !== 'F' && Math.random() > 0.7 ? String(Math.min(18, parseInt(p.thru) + 1)) : p.thru
-        })));
-        setGeoffTeam(prev => prev.map(p => ({
-          ...p,
-          score: p.score + (Math.random() > 0.85 ? (Math.random() > 0.5 ? 1 : -1) : 0),
-          thru: p.thru !== 'F' && Math.random() > 0.7 ? String(Math.min(18, parseInt(p.thru) + 1)) : p.thru
-        })));
-      };
-
       return (
         <div className="max-w-7xl mx-auto px-4 py-6 md:py-10">
           
+          {/* Custom Notification Modal dialog wrapper */}
+          {modalMessage && (
+            <div className="fixed inset-0 bg-black/80 flex items-center justify-center p-4 z-50">
+              <div className="bg-gray-800 border border-gray-700 max-w-md w-full rounded-xl p-6 shadow-2xl relative">
+                <h3 className="text-xl font-bold text-amber-500 mb-2">{modalMessage.title}</h3>
+                <p className="text-gray-300 text-sm mb-6 leading-relaxed">{modalMessage.body}</p>
+                <div className="flex justify-end">
+                  <button
+                    onClick={() => setModalMessage(null)}
+                    className="px-5 py-2.5 bg-golf-600 hover:bg-golf-700 text-white text-sm font-semibold rounded-lg shadow-md transition"
+                  >
+                    Got It
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+
           {/* Header Dashboard Banner */}
           <header className="flex flex-col md:flex-row justify-between items-start md:items-center bg-gray-800 border-l-4 border-golf-600 rounded-lg p-6 mb-8 shadow-xl">
             <div>
@@ -272,20 +534,20 @@
             <div className="flex flex-wrap gap-2 mt-4 md:mt-0">
               <button
                 onClick={() => { setActiveTab('dashboard'); setIsEditingScores(false); }}
-                className={`px-4 py-2 rounded-md font-medium text-sm transition-all duration-150 flex items-center gap-2 ${activeTab === 'dashboard' && !isEditingScores ? 'bg-golf-600 text-white shadow-md' : 'bg-gray-700 hover:bg-gray-600 text-gray-300'}`}
+                className={`px-4 py-2 rounded-md font-medium text-sm transition-all duration-150 flex items-center gap-2 ${activeTab === 'dashboard' && !isEditingScores ? 'bg-golf-600 text-white shadow-md' : 'bg-gray-750 hover:bg-gray-700 text-gray-300'}`}
               >
                 📊 Dashboard
               </button>
               <button
                 onClick={() => { setActiveTab('logs'); setIsEditingScores(false); }}
-                className={`px-4 py-2 rounded-md font-medium text-sm transition-all duration-150 flex items-center gap-2 ${activeTab === 'logs' ? 'bg-golf-600 text-white shadow-md' : 'bg-gray-700 hover:bg-gray-600 text-gray-300'}`}
+                className={`px-4 py-2 rounded-md font-medium text-sm transition-all duration-150 flex items-center gap-2 ${activeTab === 'logs' ? 'bg-golf-600 text-white shadow-md' : 'bg-gray-750 hover:bg-gray-700 text-gray-300'}`}
               >
                 <LogsIcon className="w-4 h-4" />
                 Live Console ({logs.length})
               </button>
               <button
                 onClick={() => { setActiveTab('api_config'); setIsEditingScores(false); }}
-                className={`px-4 py-2 rounded-md font-medium text-sm transition-all duration-150 flex items-center gap-2 ${activeTab === 'api_config' ? 'bg-golf-600 text-white shadow-md' : 'bg-gray-700 hover:bg-gray-600 text-gray-300'}`}
+                className={`px-4 py-2 rounded-md font-medium text-sm transition-all duration-150 flex items-center gap-2 ${activeTab === 'api_config' ? 'bg-golf-600 text-white shadow-md' : 'bg-gray-750 hover:bg-gray-700 text-gray-300'}`}
               >
                 <SettingsIcon className="w-4 h-4" />
                 API Setup
@@ -293,7 +555,7 @@
             </div>
           </header>
 
-          {/* Quick Simulation Bar */}
+          {/* Quick Simulation & Polling Bar */}
           <section className="bg-gray-800 border border-gray-700 rounded-lg px-6 py-4 mb-8 flex flex-col md:flex-row justify-between items-center gap-4">
             <div className="flex items-center space-x-3">
               <span className="flex h-3 w-3 relative">
@@ -301,7 +563,7 @@
                 <span className={`relative inline-flex rounded-full h-3 w-3 ${isSimulating ? 'bg-green-500' : 'bg-yellow-500'}`}></span>
               </span>
               <p className="text-sm font-medium">
-                Status: <span className="text-white font-bold">{isSimulating ? "Automated Polling Active" : "Polling Idle (Ready)"}</span>
+                Status: <span className="text-white font-bold">{isSimulating ? "Automated Simulated Polling" : "Polling Idle (Ready)"}</span>
               </p>
             </div>
 
@@ -317,17 +579,62 @@
                 onClick={() => setIsSimulating(!isSimulating)}
                 className={`px-4 py-1.5 rounded text-xs font-semibold tracking-wider uppercase transition-colors duration-150 ${isSimulating ? 'bg-red-600 hover:bg-red-700 text-white' : 'bg-golf-600 hover:bg-golf-700 text-white'}`}
               >
-                {isSimulating ? "Stop Simulation" : "Simulate Score Movements"}
+                {isSimulating ? "Stop Simulation" : "Simulate Live Movements"}
               </button>
               <button
-                onClick={triggerFetchMock}
-                className="px-4 py-1.5 rounded bg-gray-750 hover:bg-gray-700 text-white text-xs font-semibold tracking-wider uppercase transition-colors"
+                onClick={fetchLiveLeaderboard}
+                disabled={isLoading}
+                className="px-4 py-1.5 rounded bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold tracking-wider uppercase transition-colors flex items-center gap-1"
               >
-                Force Poll Now 🔄
+                {isLoading ? (
+                  <span className="flex items-center gap-1">
+                    <svg className="animate-spin h-3.5 w-3.5 text-white" fill="none" viewBox="0 0 24 24">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                    </svg>
+                    Polling...
+                  </span>
+                ) : "Force Poll Now 🔄"}
               </button>
             </div>
           </section>
 
+          {/* SINGLE REFRESH HERO BUTTON CONTAINER */}
+          <div className="bg-gray-800 border border-gray-700 rounded-xl p-6 mb-8 shadow-xl flex flex-col sm:flex-row justify-between items-center gap-4 animate-fadeIn">
+            <div className="flex items-center gap-3">
+              <div className="p-3 bg-golf-500/10 text-golf-400 rounded-full">
+                <FlagIcon className="w-8 h-8" />
+              </div>
+              <div>
+                <h2 className="text-xl font-bold text-white">Live Tournament Updates</h2>
+                <p className="text-xs text-gray-400 mt-0.5">
+                  Last synchronized: <span className="text-golf-400 font-extrabold">{lastSyncTime}</span>
+                </p>
+              </div>
+            </div>
+
+            <button
+              onClick={fetchLiveLeaderboard}
+              disabled={isLoading}
+              className="w-full sm:w-auto px-8 py-4 bg-gradient-to-r from-golf-500 to-golf-600 hover:from-golf-600 hover:to-golf-700 active:scale-95 text-white font-extrabold text-base tracking-wide rounded-xl shadow-xl flex items-center justify-center gap-2 transition-all duration-150 cursor-pointer border border-golf-400/20"
+            >
+              {isLoading ? (
+                <>
+                  <svg className="animate-spin h-5 w-5 text-white" fill="none" viewBox="0 0 24 24">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                  </svg>
+                  Refreshing Scores...
+                </>
+              ) : (
+                <>
+                  <span>🔄 Refresh Scores</span>
+                </>
+              )}
+            </button>
+          </div>
+
+          {}
           {activeTab === 'dashboard' && !isEditingScores && (
             <>
               {/* SIDE BET MONITOR TILES */}
@@ -350,7 +657,7 @@
                   
                   <div className="flex items-center justify-between my-5">
                     <div>
-                      <p className="text-xs text-gray-400 uppercase font-medium">Josh's Team Total (You)</p>
+                      <p className="text-xs text-gray-400 uppercase font-medium">Your Team Total (Josh)</p>
                       <p className={`text-4xl font-extrabold ${joshTotal <= 0 ? 'text-green-400' : 'text-red-400'}`}>
                         {joshTotal > 0 ? `+${joshTotal}` : joshTotal === 0 ? 'E' : joshTotal}
                       </p>
@@ -413,7 +720,7 @@
                       <div className="flex items-center gap-2">
                         <span className="text-2xl font-extrabold text-white">{alphaPlayer.name}</span>
                         <span className="text-xs bg-gray-700 text-gray-300 font-bold px-2 py-0.5 rounded">
-                          {alphaPlayer.team === 'Josh' ? "Josh's Draft (You)" : "Geoff's Draft"}
+                          {alphaPlayer.team === 'Josh (You)' ? "Josh's Draft (You)" : "Geoff's Draft"}
                         </span>
                       </div>
                       
@@ -425,8 +732,8 @@
                           </p>
                         </div>
                         <div className="border-l border-gray-700 pl-4">
-                          <p className="text-[10px] text-gray-400 uppercase tracking-wider">Thru Hole</p>
-                          <p className="text-xl font-bold text-gray-200">{alphaPlayer.thru}</p>
+                          <p className="text-[10px] text-gray-400 uppercase tracking-wider">Round Status</p>
+                          <p className="text-lg font-bold text-gray-200 mt-0.5">{formatThru(alphaPlayer.thru)}</p>
                         </div>
                       </div>
                     </div>
@@ -439,8 +746,9 @@
 
               </div>
 
+              {}
               {/* TWO-COLUMN ROSTER GRID */}
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 animate-fadeIn">
                 
                 {/* JOSH'S ROSTER (YOU) */}
                 <div className="bg-gray-800 border border-gray-700 rounded-xl overflow-hidden shadow-xl">
@@ -449,7 +757,7 @@
                       <h2 className="text-xl font-extrabold text-white flex items-center gap-2">
                         <span>🏌️‍♂️ Team Josh (You)</span>
                       </h2>
-                      <p className="text-[11px] text-golf-200">Your combined draft aggregate score</p>
+                      <p className="text-[11px] text-golf-200">Combined aggregate score</p>
                     </div>
                     <div className="bg-golf-950 text-golf-300 font-black px-4 py-2 rounded-lg border border-golf-700 text-lg">
                       {joshTotal > 0 ? `+${joshTotal}` : joshTotal === 0 ? 'E' : joshTotal}
@@ -473,12 +781,13 @@
                                 <CrownIcon className="w-4 h-4 text-yellow-500" />
                               )}
                             </div>
-                            <span className="text-xs text-gray-400 font-medium">Thru: <strong className="text-gray-200">{p.thru}</strong></span>
+                            <span className="text-xs text-gray-400 font-medium">
+                              <strong className="text-gray-300">{formatThru(p.thru)}</strong>
+                            </span>
                           </div>
                         </div>
 
                         <div className="flex items-center gap-4">
-                          {/* Manual control adjustments */}
                           <div className="flex items-center gap-1.5 bg-gray-750 px-2 py-1 rounded-md border border-gray-700">
                             <button 
                               onClick={() => handleScoreChange('Josh', p.id, -1)}
@@ -511,7 +820,7 @@
                       <h2 className="text-xl font-extrabold text-white flex items-center gap-2">
                         <span>🏌️‍♂️ Team Geoff</span>
                       </h2>
-                      <p className="text-[11px] text-blue-200">His combined draft aggregate score</p>
+                      <p className="text-[11px] text-blue-200">Combined aggregate score</p>
                     </div>
                     <div className="bg-blue-950 text-blue-300 font-black px-4 py-2 rounded-lg border border-blue-800 text-lg">
                       {geoffTotal > 0 ? `+${geoffTotal}` : geoffTotal === 0 ? 'E' : geoffTotal}
@@ -535,12 +844,13 @@
                                 <CrownIcon className="w-4 h-4 text-yellow-500" />
                               )}
                             </div>
-                            <span className="text-xs text-gray-400 font-medium">Thru: <strong className="text-gray-200">{p.thru}</strong></span>
+                            <span className="text-xs text-gray-400 font-medium">
+                              <strong className="text-gray-300">{formatThru(p.thru)}</strong>
+                            </span>
                           </div>
                         </div>
 
                         <div className="flex items-center gap-4">
-                          {/* Manual control adjustments */}
                           <div className="flex items-center gap-1.5 bg-gray-750 px-2 py-1 rounded-md border border-gray-700">
                             <button 
                               onClick={() => handleScoreChange('Geoff', p.id, -1)}
@@ -567,13 +877,31 @@
                 </div>
 
               </div>
+
+              {}
+              {/* COLLAPSIBLE RAW JSON PAYLOAD VIEWER */}
+              {rawPayload && (
+                <div className="mt-12 bg-gray-800/40 border border-gray-800 rounded-xl p-5">
+                  <details className="group">
+                    <summary className="flex justify-between items-center font-bold text-sm text-gray-400 cursor-pointer select-none">
+                      <span>🛠️ Advanced API Diagnostics & Live JSON Raw Feed</span>
+                      <span className="text-xs text-blue-400 group-open:hidden">Show JSON</span>
+                      <span className="text-xs text-blue-400 hidden group-open:inline">Hide JSON</span>
+                    </summary>
+                    <div className="mt-4 bg-gray-950 rounded-lg p-4 font-mono text-[11px] text-green-400 max-h-96 overflow-y-auto border border-gray-900 leading-normal">
+                      <p className="text-gray-400 mb-2 font-semibold">Slash Golf API `/leaderboard` raw response payload:</p>
+                      <pre>{JSON.stringify(rawPayload, null, 2)}</pre>
+                    </div>
+                  </details>
+                </div>
+              )}
             </>
           )}
 
           {}
           {/* INTERACTIVE BULK SCORE EDITOR PANEL */}
           {isEditingScores && (
-            <div className="bg-gray-800 border border-amber-600 rounded-xl p-6 shadow-2xl animate-fadeIn">
+            <div className="bg-gray-800 border border-amber-600 rounded-xl p-6 shadow-2xl">
               <div className="flex justify-between items-center mb-6 pb-3 border-b border-gray-700">
                 <div>
                   <h2 className="text-xl font-black text-amber-500 flex items-center gap-2">
@@ -681,10 +1009,10 @@
               <div className="flex justify-end gap-3.5 pt-4 border-t border-gray-750">
                 <button
                   onClick={() => {
-                    const cleanJosh = editJosh.map(p => ({ ...p, score: 0, thru: "E" }));
                     const cleanGeoff = editGeoff.map(p => ({ ...p, score: 0, thru: "E" }));
-                    setEditJosh(cleanJosh);
+                    const cleanJosh = editJosh.map(p => ({ ...p, score: 0, thru: "E" }));
                     setEditGeoff(cleanGeoff);
+                    setEditJosh(cleanJosh);
                   }}
                   className="px-4 py-2.5 rounded text-xs text-gray-400 hover:text-white transition"
                 >
@@ -731,6 +1059,7 @@
             </div>
           )}
 
+          {}
           {/* API CONFIG & SIMULATION TAB */}
           {activeTab === 'api_config' && !isEditingScores && (
             <div className="bg-gray-800 border border-gray-700 rounded-xl p-6 shadow-xl max-w-2xl mx-auto">
@@ -755,15 +1084,69 @@
                     className="w-full bg-gray-950 border border-gray-700 rounded-lg px-4 py-3 text-sm text-white focus:outline-none focus:ring-2 focus:ring-golf-500"
                   />
                   <span className="text-[11px] text-gray-500 block mt-1">
-                    Your key is parsed securely only within the browser context to query real-time leaderboard statistics.
+                    🔒 Stored safely in your local browser storage context to directly query real-time leaderboard statistics.
+                  </span>
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-xs font-bold text-gray-300 uppercase tracking-wider mb-2">
+                      Tournament ID (tournId)
+                    </label>
+                    <div className="flex gap-2">
+                      <input
+                        type="text"
+                        value={tournId}
+                        onChange={(e) => setTournId(e.target.value)}
+                        className="w-full bg-gray-950 border border-gray-700 rounded-lg px-4 py-2.5 text-sm text-white focus:outline-none focus:ring-1 focus:ring-golf-500"
+                      />
+                      <button
+                        onClick={autoDiscoverTournId}
+                        className="bg-blue-600 hover:bg-blue-700 px-3 py-2 rounded-lg text-xs font-bold transition shrink-0"
+                        title="Auto-detect US Open ID from schedule"
+                      >
+                        Auto-Detect 🔍
+                      </button>
+                    </div>
+                  </div>
+                  <div>
+                    <label className="block text-xs font-bold text-gray-300 uppercase tracking-wider mb-2">
+                      Year
+                    </label>
+                    <input
+                      type="text"
+                      value={year}
+                      onChange={(e) => setYear(e.target.value)}
+                      className="w-full bg-gray-950 border border-gray-700 rounded-lg px-4 py-2.5 text-sm text-white focus:outline-none focus:ring-1 focus:ring-golf-500"
+                    />
+                  </div>
+                </div>
+
+                {/* ACTIVE ROUND ID CONFIG (Resolves API lag on the course) */}
+                <div>
+                  <label className="block text-xs font-bold text-gray-300 uppercase tracking-wider mb-2">
+                    Specific Round Override
+                  </label>
+                  <select
+                    value={roundId}
+                    onChange={(e) => setRoundId(e.target.value)}
+                    className="w-full bg-gray-950 border border-gray-700 rounded-lg px-4 py-2.5 text-sm text-white focus:outline-none focus:ring-1 focus:ring-golf-500"
+                  >
+                    <option value="0">Auto-Detect (Most Recent Leaderboard)</option>
+                    <option value="1">Round 1</option>
+                    <option value="2">Round 2</option>
+                    <option value="3">Round 3</option>
+                    <option value="4">Round 4</option>
+                  </select>
+                  <span className="text-[11px] text-amber-500 block mt-1">
+                    ⚠️ If the API is displaying Round 1 tee times or outdated scores, change this from "Auto-Detect" to "Round 2" to force the live feed.
                   </span>
                 </div>
 
                 <div className="bg-gray-900 border border-gray-700 p-4 rounded-lg space-y-2">
-                  <h4 className="text-xs font-extrabold text-white uppercase tracking-wide">Polling Configuration Defaults:</h4>
+                  <h4 className="text-xs font-extrabold text-white uppercase tracking-wide">Polling Configuration:</h4>
                   <ul className="text-xs text-gray-400 space-y-1.5 list-disc list-inside">
                     <li>Query Endpoint: <code className="text-golf-400">https://live-golf-data.p.rapidapi.com/leaderboard</code></li>
-                    <li>Automatic polling interval: <span className="text-white">5 Minutes</span></li>
                     <li>Saves & outputs log updates for leadership/margin changes</li>
                   </ul>
                 </div>
@@ -772,7 +1155,7 @@
                   <button
                     onClick={() => {
                       const timestamp = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-                      setLogs(prev => [{ time: timestamp, text: "💾 Local key configuration updated." }, ...prev]);
+                      setLogs(prev => [{ time: timestamp, text: "💾 Local key configuration updated and saved." }, ...prev]);
                       setActiveTab('dashboard');
                     }}
                     className="px-5 py-2.5 rounded-lg bg-golf-600 hover:bg-golf-700 font-semibold text-sm transition-colors text-white"
